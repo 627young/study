@@ -1,1 +1,1 @@
-hello.sh
+/home/wheeltec_client/study/study/hello.sh
