@@ -5,7 +5,8 @@
 #include <curl/curl.h>
 #include <unistd.h>
 
-#define NUM_THREADS 4  // 定义线程数量
+#define NUM_THREADS 8  // 定义线程数量
+#define PROGRESS_FILE "download.progress"  // 保存下载进度的文件
 
 typedef struct {
     const char *url;
@@ -33,8 +34,17 @@ size_t getcontentlengthfunc(void *ptr, size_t size, size_t nmemb, void *stream) 
 // 保存下载文件
 size_t writefunc(void *ptr, size_t size, size_t nmemb, void *stream) {
     size_t written = fwrite(ptr, size, nmemb, stream);
+    
     pthread_mutex_lock(&progress_mutex);
     total_downloaded += written * size;
+
+    // 保存下载进度
+    FILE *progress_file = fopen(PROGRESS_FILE, "w");
+    if (progress_file) {
+        fprintf(progress_file, "%ld\n", total_downloaded);
+        fclose(progress_file);
+    }
+
     pthread_mutex_unlock(&progress_mutex);
     return written;
 }
@@ -85,12 +95,13 @@ void *show_progress(void *arg) {
     while (total_downloaded < total_filesize) {
         pthread_mutex_lock(&progress_mutex);
         double progress = (double)total_downloaded / total_filesize * 100;
+        curl_off_t remaining_size = total_filesize - total_downloaded;
         pthread_mutex_unlock(&progress_mutex);
-        printf("Download progress: %.2f%%\r", progress);
+        printf("Download progress: %.2f%%, Remaining size: %d Byte\r", progress, remaining_size);
         fflush(stdout);
         sleep(1);
     }
-    printf("Download progress: 100.00%%\n");
+    printf("Download progress: 100.00%%, Remaining size: 0.00 KB\n");
     pthread_exit(NULL);
 }
 
@@ -129,8 +140,15 @@ int main(int argc, char **argv) {
 
     total_filesize = filesize;
 
+    // 检查是否有之前的下载进度
+    FILE *progress_file = fopen(PROGRESS_FILE, "r");
+    if (progress_file) {
+        fscanf(progress_file, "%ld", &total_downloaded);
+        fclose(progress_file);
+    }
+
     // 创建文件
-    FILE *f = fopen(filepath, "wb");
+    FILE *f = fopen(filepath, "ab+");
     if (!f) {
         perror("fopen");
         return 1;
@@ -167,5 +185,9 @@ int main(int argc, char **argv) {
     pthread_mutex_destroy(&progress_mutex);
     curl_global_cleanup();
     printf("Download completed\n");
+
+    // 删除进度文件
+    remove(PROGRESS_FILE);
+
     return 0;
 }
