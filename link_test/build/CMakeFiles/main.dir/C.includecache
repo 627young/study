@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/list.h
+stdio.h
+-
+stdlib.h
+-
+
+/home/ubuntu/zhiduan/share/code_test/link_test/src/list.c
+list.h
+/home/ubuntu/zhiduan/share/code_test/link_test/src/list.h
+

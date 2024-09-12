@@ -1,0 +1,3 @@
+/home/ubuntu/zhiduan/share/code_test/link_test/build/CMakeFiles/rebuild_cache.dir
+/home/ubuntu/zhiduan/share/code_test/link_test/build/CMakeFiles/edit_cache.dir
+/home/ubuntu/zhiduan/share/code_test/link_test/build/CMakeFiles/main.dir
