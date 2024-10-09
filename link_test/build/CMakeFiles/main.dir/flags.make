@@ -6,5 +6,5 @@ C_FLAGS =  -Wall -g
 
 C_DEFINES = 
 
-C_INCLUDES = -I/home/ubuntu/zhiduan/share/code_test/link_test/include 
+C_INCLUDES = -I/home/ubuntu/zhiduan/share/study/link_test/include 
 

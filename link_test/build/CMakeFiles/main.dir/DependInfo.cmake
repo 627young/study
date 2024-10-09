@@ -4,8 +4,8 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/home/ubuntu/zhiduan/share/code_test/link_test/src/list.c" "/home/ubuntu/zhiduan/share/code_test/link_test/build/CMakeFiles/main.dir/src/list.c.o"
-  "/home/ubuntu/zhiduan/share/code_test/link_test/src/main.c" "/home/ubuntu/zhiduan/share/code_test/link_test/build/CMakeFiles/main.dir/src/main.c.o"
+  "/home/ubuntu/zhiduan/share/study/link_test/src/list.c" "/home/ubuntu/zhiduan/share/study/link_test/build/CMakeFiles/main.dir/src/list.c.o"
+  "/home/ubuntu/zhiduan/share/study/link_test/src/main.c" "/home/ubuntu/zhiduan/share/study/link_test/build/CMakeFiles/main.dir/src/main.c.o"
   )
 set(CMAKE_C_COMPILER_ID "GNU")
 

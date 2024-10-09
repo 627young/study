@@ -12,7 +12,11 @@ stdio.h
 stdlib.h
 -
 
-/home/ubuntu/zhiduan/share/code_test/link_test/src/list.c
+/home/ubuntu/zhiduan/share/study/link_test/src/list.c
 list.h
-/home/ubuntu/zhiduan/share/code_test/link_test/src/list.h
+/home/ubuntu/zhiduan/share/study/link_test/src/list.h
+
+/home/ubuntu/zhiduan/share/study/link_test/src/main.c
+list.h
+/home/ubuntu/zhiduan/share/study/link_test/src/list.h
 

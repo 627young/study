@@ -15,6 +15,10 @@ list *list_create();
 
 int list_insert(list *, int i, datatype *);
 
+int list_head_insert(list *, datatype *);
+
+int list_tail_insert(list *, datatype *);
+
 int list_oreder_insert(list *, datatype *);
 
 void list_show(list *);
@@ -24,5 +28,8 @@ int list_delete(list *, int i, datatype *);
 int list_isempty(list *);
 
 void list_destroy(list *);
+
+int locate_elem(list *lst, datatype *data);
+
 
 #endif // LIST_H

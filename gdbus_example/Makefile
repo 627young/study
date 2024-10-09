@@ -6,7 +6,7 @@ LIB_DIR := lib
 # 静态库名称
 STATIC_LIB_NAME := libhello.a
 
-all: Hello.c $(LIB_DIR)/$(STATIC_LIB_NAME) service client
+all: Hello.c $(LIB_DIR)/$(STATIC_LIB_NAME) service client post_build_cleanup
 
 # 生成 hello.c 文件
 $(SRC_DIR)/Hello.c: $(INTF_DIR)/hello.intf
@@ -23,7 +23,6 @@ $(LIB_DIR)/$(STATIC_LIB_NAME): $(SRC_DIR)/Hello.o
 	@mkdir -p $(LIB_DIR)
 	ar rcs $@ $<
 
-# 编译 Hello.c 为目标文件
 $(SRC_DIR)/Hello.o: $(SRC_DIR)/Hello.c $(SRC_DIR)/Hello.h
 	gcc -c -fPIC -I$(shell pkg-config --cflags gio-2.0 glib-2.0 gio-unix-2.0) -o $@ $<
 
@@ -32,6 +31,9 @@ service:
 
 client:
 	@cd src/client/ && make
+
+post_build_cleanup:
+	@rm -f $(SRC_DIR)/Hello.c $(SRC_DIR)/Hello.h $(SRC_DIR)/Hello.o
 
 clean:
 	@cd src/service/ && make clean
