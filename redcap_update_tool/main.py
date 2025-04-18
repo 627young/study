@@ -72,7 +72,7 @@ class OTAApp(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("RedCap-OTA升级工具 v2.0")
-        self.setGeometry(100, 100, 600, 400)
+        self.setGeometry(100, 100, 600, 600)
         
         # 设置应用程序图标
         self.setWindowIcon(QIcon(r"./icon/icon.jpg"))
@@ -125,6 +125,10 @@ class OTAApp(QMainWindow):
         self.btn_export = QPushButton("导出日志")
         self.btn_export.clicked.connect(self.export_logs)
         group3_layout.addWidget(self.btn_export)
+
+        self.btn_view_log = QPushButton("查看日志")
+        self.btn_view_log.clicked.connect(self.view_log)
+        group3_layout.addWidget(self.btn_view_log)
 
         # 添加查看版本按钮
         self.btn_version = QPushButton("查看版本")
@@ -188,7 +192,7 @@ class OTAApp(QMainWindow):
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
         file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "选择镜像/升级包", "", "ZIP文件 (*.zip);;IMG文件 (*.img);;所有文件 (*)" 
+            self, "选择镜像/升级包", "", "(*.img;*.zip);" 
         )
         if file_paths:
             self.log("开始导入镜像/升级包...")
@@ -597,27 +601,13 @@ class OTAApp(QMainWindow):
             return
         
         try:
-            # 获取两个目录的日志文件列表
-            result1 = subprocess.run(
-                ["adb", "shell", f"ls -lA {self.app_log_path} | awk '{{print $9}}'"],
-                capture_output=True,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                text=True
-            )
-            result2 = subprocess.run(
-                ["adb", "shell", f"ls -lA {self.mcu_log_path} | awk '{{print $9}}'"],
-                capture_output=True,
-                creationflags=subprocess.CREATE_NO_WINDOW,
-                text=True
-            )
+            # 获取日志列表
+            log_files = self.acquire_log_list()
 
-            log_files = [line.strip() for line in result1.stdout.splitlines() if line.strip()]
-            log_files += [line.strip() for line in result2.stdout.splitlines() if line.strip()]
-            
             if not log_files:
                 QMessageBox.information(self, "提示", "没有找到任何日志文件")
                 return
-                
+
             # 让用户选择要导出的日志
             selected_log, ok = QInputDialog.getItem(
                 self,
@@ -684,6 +674,162 @@ class OTAApp(QMainWindow):
                 QMessageBox.warning(self, "警告", "获取版本信息失败")
         except Exception as e:
             QMessageBox.critical(self, "错误", f"获取版本信息时出错：{str(e)}")
+
+    
+
+    def view_log(self):
+        """查看日志"""
+        if not self.check_device_connected():
+            QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
+            return
+        
+        try:
+            # 获取日志文件列表
+            log_files = self.acquire_log_list()
+            
+            if not log_files:
+                QMessageBox.information(self, "提示", "没有找到任何日志文件")
+                return
+
+            # 选择要查看的日志文件
+            selected_log, ok = QInputDialog.getItem(
+                self,
+                "选择日志文件",
+                "请选择要查看的日志文件：",
+                log_files,
+                0,
+                False
+            )
+
+            if not ok or not selected_log:
+                self.log("用户取消日志查看操作。")
+                return
+
+            # 创建并显示日志查看窗口
+            self.log_viewer = LogViewerWindow(f"/oemdata/logs/{selected_log}")
+            self.log_viewer.show()
+
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"获取日志列表失败：{str(e)}")
+            self.log(f"获取日志列表失败：{str(e)}")
+    
+    def acquire_log_list(self):
+        """获取日志列表"""
+        # 获取两个目录的日志文件列表
+        result1 = subprocess.run(
+            ["adb", "shell", f"ls -lA {self.app_log_path} | awk '{{print $9}}'"],
+            capture_output=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            text=True
+        )
+        result2 = subprocess.run(
+            ["adb", "shell", f"ls -lA {self.mcu_log_path} | awk '{{print $9}}'"],
+            capture_output=True,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+            text=True
+        )
+
+        log_files = [line.strip() for line in result1.stdout.splitlines() if line.strip()]
+        log_files += [line.strip() for line in result2.stdout.splitlines() if line.strip()]
+        
+        return log_files
+
+
+class LogViewerWindow(QMainWindow):
+    def __init__(self, log_file):
+        super().__init__()
+        self.log_file = log_file
+        self.is_paused = False
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle(f"{os.path.basename(self.log_file)}")
+        self.setGeometry(200, 200, 800, 600)
+
+        # 主布局
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        layout = QVBoxLayout()
+
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        
+        # 添加暂停按钮
+        self.pause_button = QPushButton("暂停滚动")
+        self.pause_button.clicked.connect(self.pause_log)
+        button_layout.addWidget(self.pause_button)
+
+        # 添加继续按钮
+        self.resume_button = QPushButton("继续滚动")
+        self.resume_button.clicked.connect(self.resume_log)
+        self.resume_button.setEnabled(False)
+        button_layout.addWidget(self.resume_button)
+
+        layout.addLayout(button_layout)
+
+        # 日志显示区域
+        self.log_area = QTextEdit()
+        self.log_area.setReadOnly(True)
+        layout.addWidget(self.log_area)
+
+        main_widget.setLayout(layout)
+
+        # 启动日志查看线程
+        self.view_log_thread = ViewLogThread(self.log_file)
+        self.view_log_thread.update_signal.connect(self.update_log)
+        self.view_log_thread.finished_signal.connect(lambda: self.log("日志查看结束"))
+        self.view_log_thread.start()
+
+    def pause_log(self):
+        """暂停日志滚动"""
+        self.is_paused = True
+        self.pause_button.setEnabled(False)
+        self.resume_button.setEnabled(True)
+
+    def resume_log(self):
+        """继续日志滚动"""
+        self.is_paused = False
+        self.pause_button.setEnabled(True)
+        self.resume_button.setEnabled(False)
+
+    def update_log(self, message):
+        """更新日志内容"""
+        if not self.is_paused:
+            self.log_area.append(message)
+            self.log_area.ensureCursorVisible()
+
+    def log(self, message):
+        """直接添加日志内容"""
+        self.log_area.append(message)
+        self.log_area.ensureCursorVisible()
+
+class ViewLogThread(QThread):
+        update_signal = pyqtSignal(str)
+        finished_signal = pyqtSignal()
+
+        def __init__(self, log_file):
+            super().__init__()
+            self.log_file = log_file
+
+        def run(self):
+            try:
+                process = subprocess.Popen(
+                    ['adb', 'shell', 'tail', '-f', self.log_file],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    universal_newlines=True
+                )
+
+                while process.poll() is None:
+                    output = process.stdout.readline()
+                    if output:
+                        self.update_signal.emit(output.strip())
+                    QApplication.processEvents()
+
+                self.finished_signal.emit()
+            except Exception as e:
+                self.update_signal.emit(f"查看日志失败：{str(e)}")
 
 if __name__ == "__main__":
     app = QApplication([])
