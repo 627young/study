@@ -679,7 +679,7 @@ class OTAApp(QMainWindow):
                         line = line.replace('"', "")
                         key, value = line.split("=", 1)
                         version_info_format += f"{key.strip()}: {value.strip().center(20, ' ')}\n"
-                QMessageBox.information(self, "版本信息", version_info_format)
+                self.log(f"\n{version_info_format}")
             else:
                 QMessageBox.warning(self, "警告", "获取版本信息失败")
         except Exception as e:
