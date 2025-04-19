@@ -11,8 +11,10 @@ class DeviceModel:
         """检查设备连接状态"""
         try:
             result = self.adb.execute_command(["shell", "echo", "connected"])
-            return "connected" in result.stdout.lower()
+            if "connected" not in result.stdout.lower():
+                QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
         except Exception:
+            print("设备未连接")
             return False
             
     def get_version_info(self):

@@ -42,7 +42,6 @@ class MainWindow(QMainWindow):
         
         main_widget.setLayout(main_layout)
 
-        self._connect_signals()
         
     def _create_import_group(self):
         """创建导入分组"""
@@ -84,7 +83,8 @@ class MainWindow(QMainWindow):
         self.btn_export = QPushButton("导出日志")
         self.btn_export.clicked.connect(self.device_controller.export_logs)
         layout.addWidget(self.btn_export)
-    
+
+        # self.btn_view = QPushButton("查看日志")
         # self.btn_view.clicked.connect(self.device_controller.view_log)
         # layout.addWidget(self.btn_view)
         
@@ -94,9 +94,3 @@ class MainWindow(QMainWindow):
         
         group.setLayout(layout)
         return group
-    def _connect_signals(self):
-        """Connect UI signals to controller methods"""
-        if self.update_controller:
-            self.btn_import.clicked.connect(self.update_controller.import_package)
-        if self.device_controller:
-            self.btn_clean.clicked.connect(self.device_controller.clean_upgrade_path)

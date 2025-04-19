@@ -1,6 +1,5 @@
 from models.update_model import UpdateModel
 from models.device_model import DeviceModel
-from utils.logger import Logger
 
 class UpdateController:
     def __init__(self):
@@ -11,9 +10,7 @@ class UpdateController:
         
     def import_package(self, file_paths):
         """导入升级包"""
-        if not self.device_model.check_connection():
-            return
-            
+        self.device_model.check_connection()
         try:
             results = self.updare_model.import_package(file_paths)
             self._handle_import_results(results)
@@ -23,9 +20,7 @@ class UpdateController:
             
     def execute_flash(self):
         """执行烧录"""
-        if not self.device_model.check_connection():
-            return
-            
+        self.device_model.check_connection()
         try:
             config = self._prepare_flash_config()
             self.model.execute_flash(config)
@@ -36,8 +31,7 @@ class UpdateController:
             
     def execute_ota(self, package_name):
         """执行OTA升级"""
-        if not self.device_model.check_connection():
-            return
+        self.device_model.check_connection()
             
         try:
             result = self.model.execute_ota(package_name)

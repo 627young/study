@@ -55,3 +55,5 @@ dkms.conf
 redcap_update_tool/build/*
 redcap_update_tool/dist/*
 redcap_update_tool/*.spec
+
+update_app/*/__pycache__/*
