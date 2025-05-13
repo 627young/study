@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                             QHBoxLayout, QPushButton, QTextEdit, QFileDialog,
-                            QMessageBox, QGroupBox, QInputDialog)
+                            QMessageBox, QGroupBox, QInputDialog, QDialog, QStackedWidget)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
 import os
@@ -9,16 +9,109 @@ import time
 from PyQt5.QtCore import QThread, pyqtSignal
 
 class OTAApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.burn_path = "/online/"
+        self.ota_path = "/media/sdcard/ota/"
+        self.app_log_path = "/media/sdcard/log/logs/"
+        self.mcu_log_path = "/media/sdcard/data/tbox_log/"
+        self.configs_path = "/oemdata/configs/tbox_config.cfg.rw"
+        self.initUI()
+        self.log_content = []
+        self.log_viewer = []
+
+    def initUI(self):
+        self.setWindowTitle("RedCap-OTA升级工具 v4.0")
+        self.setGeometry(100, 100, 600, 600)
+
+        # 设置应用程序图标
+        self.setWindowIcon(QIcon(r"./icon/icon.jpg"))
+        app.setWindowIcon(QIcon(r"./icon/icon.jpg"))
+
+        # 主窗口布局
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        main_layout = QVBoxLayout()
+
+        # 上部按钮区域
+        top_btn_layout = QHBoxLayout()
+
+
+
+        # 第一组按钮（导入和清空）
+        group1 = QGroupBox("导入/清空")
+        group1_layout = QVBoxLayout()
+
+        self.btn_import = QPushButton("导入镜像/升级包")
+        self.btn_import.clicked.connect(self.import_ota_package)
+        group1_layout.addWidget(self.btn_import)
+
+        self.btn_clean = QPushButton("清空升级路径")
+        self.btn_clean.clicked.connect(self.clean_target_path)
+        group1_layout.addWidget(self.btn_clean)
+
+        group1.setLayout(group1_layout)
+        top_btn_layout.addWidget(group1)
+
+        # 第二组按钮（烧录操作）
+        group2 = QGroupBox("烧录/本地升级")
+        group2_layout = QVBoxLayout()
+
+        self.btn_flash = QPushButton("烧录升级")
+        self.btn_flash.clicked.connect(self.execute_flash)
+        group2_layout.addWidget(self.btn_flash)
+
+        self.btn_ota = QPushButton("本地升级")
+        self.btn_ota.clicked.connect(self.ota_upgrade)
+        group2_layout.addWidget(self.btn_ota)
+
+        group2.setLayout(group2_layout)
+        top_btn_layout.addWidget(group2)
+
+        # 第三组按钮（日志操作）
+        group3 = QGroupBox("日志/版本")
+        group3_layout = QVBoxLayout()
+
+        self.btn_export = QPushButton("导出日志")
+        self.btn_export.clicked.connect(self.export_logs)
+        group3_layout.addWidget(self.btn_export)
+
+        self.btn_view_log = QPushButton("查看日志")
+        self.btn_view_log.clicked.connect(self.view_log)
+        group3_layout.addWidget(self.btn_view_log)
+
+        # 添加查看版本按钮
+        self.btn_version = QPushButton("查看版本")
+        self.btn_version.clicked.connect(self.show_version)
+        group3_layout.addWidget(self.btn_version)
+
+        group3.setLayout(group3_layout)
+        top_btn_layout.addWidget(group3)
+
+        main_layout.addLayout(top_btn_layout)
+
+        # 日志区域
+        self.log_area = QTextEdit()
+        self.log_area.setReadOnly(True)
+        main_layout.addWidget(self.log_area)
+
+        # 添加清除日志按钮
+        self.btn_clear_log = QPushButton("清除窗口")
+        self.btn_clear_log.clicked.connect(self.clear_log)
+        main_layout.addWidget(self.btn_clear_log)
+
+        main_widget.setLayout(main_layout)
+
     class ImportPackageThread(QThread):
         update_signal = pyqtSignal(str)
         finished_signal = pyqtSignal(list)
-    
+
         def __init__(self, file_paths, burn_path, ota_path):
             super().__init__()
             self.file_paths = file_paths
             self.burn_path = burn_path
             self.ota_path = ota_path
-    
+
         def run(self):
             results = []
             for file_path in self.file_paths:
@@ -29,7 +122,7 @@ class OTAApp(QMainWindow):
                     else:
                         dest_path = self.ota_path
 
-                    process = subprocess.Popen(["adb.exe", "push", file_path, dest_path],
+                    process = subprocess.Popen(["adb", "push", file_path, dest_path],
                                             stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             creationflags=subprocess.CREATE_NO_WINDOW,
@@ -51,7 +144,7 @@ class OTAApp(QMainWindow):
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
         file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "选择镜像/升级包", "", "ZIP文件 (*.zip);;IMG文件 (*.img);;所有文件 (*)" 
+            self, "选择镜像/升级包", "", "所有文件 (*)"
         )
         if file_paths:
             self.log("开始导入镜像/升级包...")
@@ -60,105 +153,11 @@ class OTAApp(QMainWindow):
             self.import_thread.finished_signal.connect(self.handle_import_result)
             self.import_thread.start()
 
-    def __init__(self):
-        super().__init__()
-        self.burn_path = "/online/"
-        self.ota_path = "/media/sdcard/ota/"
-        self.app_log_path = "/media/sdcard/log/logs/"
-        self.mcu_log_path = "/media/sdcard/data/tbox_log/"
-        self.configs_path = "/oemdata/configs/tbox_config.cfg.rw"
-        self.initUI()
-        self.log_content = []
-
-    def initUI(self):
-        self.setWindowTitle("RedCap-OTA升级工具 v2.0")
-        self.setGeometry(100, 100, 600, 600)
-        
-        # 设置应用程序图标
-        self.setWindowIcon(QIcon(r"./icon/icon.jpg"))
-        app.setWindowIcon(QIcon(r"./icon/icon.jpg"))
-
-        # 主窗口布局
-        main_widget = QWidget()
-        self.setCentralWidget(main_widget)
-        main_layout = QVBoxLayout()
-        
-        # 上部按钮区域
-        top_btn_layout = QHBoxLayout()
-
-
-        
-        # 第一组按钮（导入和清空）
-        group1 = QGroupBox("导入/清空")
-        group1_layout = QVBoxLayout()
-        
-        self.btn_import = QPushButton("导入镜像/升级包")
-        self.btn_import.clicked.connect(self.import_ota_package)
-        group1_layout.addWidget(self.btn_import)
-        
-        self.btn_clean = QPushButton("清空升级路径")
-        self.btn_clean.clicked.connect(self.clean_target_path)
-        group1_layout.addWidget(self.btn_clean)
-        
-        group1.setLayout(group1_layout)
-        top_btn_layout.addWidget(group1)
-        
-        # 第二组按钮（烧录操作）
-        group2 = QGroupBox("烧录/OTA")
-        group2_layout = QVBoxLayout()
-                   
-        self.btn_flash = QPushButton("烧录升级")
-        self.btn_flash.clicked.connect(self.execute_flash)
-        group2_layout.addWidget(self.btn_flash)
-        
-        self.btn_ota = QPushButton("OTA升级")
-        self.btn_ota.clicked.connect(self.ota_upgrade)
-        group2_layout.addWidget(self.btn_ota)
-        
-        group2.setLayout(group2_layout)
-        top_btn_layout.addWidget(group2)
-        
-        # 第三组按钮（日志操作）
-        group3 = QGroupBox("日志/版本")
-        group3_layout = QVBoxLayout()
-        
-        self.btn_export = QPushButton("导出日志")
-        self.btn_export.clicked.connect(self.export_logs)
-        group3_layout.addWidget(self.btn_export)
-
-        self.btn_view_log = QPushButton("查看日志")
-        self.btn_view_log.clicked.connect(self.view_log)
-        group3_layout.addWidget(self.btn_view_log)
-
-        # 添加查看版本按钮
-        self.btn_version = QPushButton("查看版本")
-        self.btn_version.clicked.connect(self.show_version)
-        group3_layout.addWidget(self.btn_version)
-        
-        group3.setLayout(group3_layout)
-        top_btn_layout.addWidget(group3)
-        
-        main_layout.addLayout(top_btn_layout)
-        
-        # 日志区域
-        self.log_area = QTextEdit()
-        self.log_area.setReadOnly(True)
-        main_layout.addWidget(self.log_area)
-        
-        # 添加清除日志按钮
-        self.btn_clear_log = QPushButton("清除窗口")
-        self.btn_clear_log.clicked.connect(self.clear_log)
-        main_layout.addWidget(self.btn_clear_log)
-        
-        main_widget.setLayout(main_layout)
-
     class ClearLogThread(QThread):
         finished_signal = pyqtSignal()
-        
+
         def run(self):
             try:
-                # 模拟清除操作，添加延迟
-                time.sleep(1)
                 self.finished_signal.emit()
             except Exception as e:
                 print(f"清除日志时出错：{str(e)}")
@@ -186,21 +185,6 @@ class OTAApp(QMainWindow):
             self.log(f"设备连接检查失败：{str(e)}")
             return False
 
-    def import_ota_package(self):
-        ## adb shell检查设备连接状态
-        if not self.check_device_connected():
-            QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
-            return
-        file_paths, _ = QFileDialog.getOpenFileNames(
-            self, "选择镜像/升级包", "", "(*.img;*.zip);" 
-        )
-        if file_paths:
-            self.log("开始导入镜像/升级包...")
-            self.import_thread = self.ImportPackageThread(file_paths, self.burn_path, self.ota_path)
-            self.import_thread.update_signal.connect(self.log)
-            self.import_thread.finished_signal.connect(self.handle_import_result)
-            self.import_thread.start()
-
     def handle_import_result(self, results):
         for file_path, result in results:
             if isinstance(result, Exception):
@@ -217,12 +201,12 @@ class OTAApp(QMainWindow):
     class CleanPathThread(QThread):
         update_signal = pyqtSignal(str)
         finished_signal = pyqtSignal()
-    
+
         def __init__(self, selected_files, ota_path):
             super().__init__()
             self.selected_files = selected_files
             self.ota_path = ota_path
-    
+
         def run(self):
             try:
                 if self.selected_files == "全部":
@@ -235,16 +219,16 @@ class OTAApp(QMainWindow):
                                          capture_output=True,
                                          creationflags=subprocess.CREATE_NO_WINDOW,
                                          text=True)
-                
+
                 if result.stdout:
                     self.update_signal.emit(result.stdout.strip())
                 if result.stderr:
                     self.update_signal.emit(result.stderr.strip())
-                
+
                 self.finished_signal.emit()
             except Exception as e:
                 self.update_signal.emit(f"操作失败：{str(e)}")
-    
+
     def clean_target_path(self):
         ## adb shell检查设备连接状态
         if not self.check_device_connected():
@@ -257,7 +241,7 @@ class OTAApp(QMainWindow):
                                     capture_output=True,
                                     creationflags=subprocess.CREATE_NO_WINDOW,
                                     text=True)
-            
+
             if "No such file or directory" in result.stdout:
                 self.log("升级路径为空，无需清理。")
                 QMessageBox.information(self, "提示", "升级路径为空，无需清理")
@@ -312,6 +296,12 @@ class OTAApp(QMainWindow):
                     self.update_signal.emit("未找到boot.img，跳过升级。")
                 else:
                     self.update_signal.emit("开始执行升级boot...")
+                    self.update_signal.emit("开始擦除boot分区...")
+                    with open("burn.log", "a") as log_file:
+                        subprocess.run(["adb", "shell", "upg_test", "erase", self.config["MTD_BOOT"]],
+                                     stdout=log_file, stderr=log_file, text=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
+                    self.update_signal.emit("boot分区擦除完成。")
                     with open("burn.log", "a") as log_file:
                         subprocess.run(["adb", "shell", "upg_test", "writeraw", self.config["MTD_BOOT"], self.config["BOOT_IMG"]],
                                      stdout=log_file, stderr=log_file, text=True,
@@ -322,6 +312,34 @@ class OTAApp(QMainWindow):
                                      stdout=log_file, stderr=log_file, text=True,
                                      creationflags=subprocess.CREATE_NO_WINDOW)
                     self.update_signal.emit("boot.img 删除完成。")
+                    self.config["NEED_REBOOT"] = 1
+
+                # 检查并升级dt_packed.img
+                self.update_signal.emit("开始检查并升级dt_packed.img...")
+                result = subprocess.run(["adb", "shell", "ls", f"{self.burn_path}dt_packed.img"],
+                                     capture_output=True, text=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
+                error_msg = result.stdout.lower()
+                if ("no such file or directory" in error_msg):
+                    self.update_signal.emit("未找到dt_packed.img，跳过升级。")
+                else:
+                    self.update_signal.emit("开始执行升级dt_packed...")
+                    self.update_signal.emit("开始擦除dt分区...")
+                    with open("burn.log", "a") as log_file:
+                        subprocess.run(["adb", "shell", "upg_test", "erase", self.config["MTD_DT"]],
+                                     stdout=log_file, stderr=log_file, text=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
+                    self.update_signal.emit(f"dt分区擦除完成。")
+                    with open("burn.log", "a") as log_file:
+                        subprocess.run(["adb", "shell", "upg_test", "writeraw", self.config["MTD_DT"], self.config["DT_PACKED_IMG"]],
+                                     stdout=log_file, stderr=log_file, text=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
+                    self.update_signal.emit("dt_packed.img 升级完成。")
+                    with open("burn.log", "a") as log_file:
+                        subprocess.run(["adb", "shell", "rm", f"{self.burn_path}dt_packed.img"],
+                                     stdout=log_file, stderr=log_file, text=True,
+                                     creationflags=subprocess.CREATE_NO_WINDOW)
+                    self.update_signal.emit("dt_packed.img 删除完成。")
                     self.config["NEED_REBOOT"] = 1
 
                 # 检查并升级custapp.img
@@ -349,30 +367,8 @@ class OTAApp(QMainWindow):
                     self.update_signal.emit("custapp.img 删除完成。")
                     self.config["NEED_REBOOT"] = 1
 
-                # 检查并升级dt_packed.img
-                self.update_signal.emit("开始检查并升级dt_packed.img...")
-                result = subprocess.run(["adb", "shell", "ls", f"{self.burn_path}dt_packed.img"],
-                                     capture_output=True, text=True,
-                                     creationflags=subprocess.CREATE_NO_WINDOW)
-                error_msg = result.stdout.lower()
-                if ("no such file or directory" in error_msg):
-                    self.update_signal.emit("未找到dt_packed.img，跳过升级。")
-                else:
-                    self.update_signal.emit("开始执行升级dt_packed...")
-                    with open("burn.log", "a") as log_file:
-                        subprocess.run(["adb", " shell", "upg_test", "writeraw", self.config["MTD_DT"], self.config["DT_PACKED_IMG"]],
-                                     stdout=log_file, stderr=log_file, text=True,
-                                     creationflags=subprocess.CREATE_NO_WINDOW)
-                    self.update_signal.emit("dt_packed.img 升级完成。")
-                    with open("burn.log", "a") as log_file:
-                        subprocess.run(["adb", "shell", "rm", f"{self.burn_path}dt_packed.img"],
-                                     stdout=log_file, stderr=log_file, text=True,
-                                     creationflags=subprocess.CREATE_NO_WINDOW)
-                    self.update_signal.emit("dt_packed.img 删除完成。")
-                    self.config["NEED_REBOOT"] = 1
 
-
-                # 检查是否需要重启
+                #检查是否需要重启
                 if self.config["NEED_REBOOT"] == 1:
                     # 设置boot_flgg为1 adb shell "upg_test setbootflag 1"
                     self.update_signal.emit("检测到需要重启，开始重启...")
@@ -394,18 +390,12 @@ class OTAApp(QMainWindow):
         if not self.check_device_connected():
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
-        try:
-            result = subprocess.run(["adb", "shell", "echo", "connected"],
-                                 capture_output=True,
-                                 creationflags=subprocess.CREATE_NO_WINDOW,
-                                 text=True)
-            if "connected" not in result.stdout.lower():
-                QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
-                return
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"设备连接失败：{str(e)}")
-            self.log(f"设备连接失败：{str(e)}")
+
+         # 添加导入状态检查
+        if hasattr(self, 'import_thread') and self.import_thread.isRunning():
+            QMessageBox.warning(self, "提示", "镜像正在导入中，请稍后再试")
             return
+
         ## 检查升级路径是否存在.img文件
         try:
             result = subprocess.run(["adb", "shell", "ls", f"{self.burn_path}*.img"],
@@ -423,11 +413,16 @@ class OTAApp(QMainWindow):
             QMessageBox.critical(self, "错误", f"检查升级路径失败：{str(e)}")
             self.log(f"检查升级路径失败：{str(e)}")
             return
+        ## 弹框选择是否开始烧录
+        reply = QMessageBox.question(self, "提示", "是否开始烧录？", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.No:
+            self.log("用户取消烧录操作。")
+            return
         # 创建并初始化burn.log文件
         with open("burn.log", "w") as log_file:
             log_file.write("=== 烧录日志 ===\n")
             log_file.write(f"开始时间: {time.strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-        
+
         self.log("开始执行烧录...")
         # 配置路径
         config = {
@@ -437,7 +432,7 @@ class OTAApp(QMainWindow):
             "MTD_BOOT": "/dev/mtd/mtd28",
             "MTD_DT": "/dev/mtd/mtd21",
             "UNMOUNT_POINT": "/oemapp",
-            "NEED_REBOOT": 0  # 标记是否需要重启 
+            "NEED_REBOOT": 0  # 标记是否需要重启
         }
 
         # 创建并启动烧录线程
@@ -495,13 +490,19 @@ class OTAApp(QMainWindow):
             if not self.check_device_connected():
                 QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
                 return
+
+             # 添加导入状态检查
+            if hasattr(self, 'import_thread') and self.import_thread.isRunning():
+                QMessageBox.warning(self, "提示", "升级包正在导入中，请稍后再试")
+                return
+
             result = subprocess.run(
                 ["adb", "shell", "ls", f"{self.ota_path}*.zip"],
                 capture_output=True,
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 text=True
             )
-            error_msg = result.stdout.lower()   
+            error_msg = result.stdout.lower()
             if ("no such file or directory" in error_msg or
                 "未找到" in error_msg or
                 not result.stdout.strip()):
@@ -542,7 +543,7 @@ class OTAApp(QMainWindow):
     class ExportLogsThread(QThread):
         update_signal = pyqtSignal(str)
         finished_signal = pyqtSignal()
-    
+
         def __init__(self, dest_path, selected_log, app_log_path, mcu_log_path):
             super().__init__()
             self.dest_path = dest_path
@@ -550,17 +551,17 @@ class OTAApp(QMainWindow):
             self.app_log_path = app_log_path
             self.mcu_log_path = mcu_log_path
 
-    
+
         def run(self):
             try:
                 if self.selected_log == "全部":
                     process = subprocess.Popen(["adb", "pull", self.app_log_path, self.dest_path],
-                                            stdout=subprocess.PIPE, 
+                                            stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             creationflags=subprocess.CREATE_NO_WINDOW,
                                             universal_newlines=True)
                     process = subprocess.Popen(["adb", "pull", self.mcu_log_path, self.dest_path],
-                                            stdout=subprocess.PIPE, 
+                                            stdout=subprocess.PIPE,
                                             stderr=subprocess.PIPE,
                                             creationflags=subprocess.CREATE_NO_WINDOW,
                                             universal_newlines=True)
@@ -570,18 +571,18 @@ class OTAApp(QMainWindow):
                                          creationflags=subprocess.CREATE_NO_WINDOW)
                     if "no such file or directory" in result.stdout.lower():
                         process = subprocess.Popen(["adb", "pull", f"{self.mcu_log_path}/{self.selected_log}", self.dest_path],
-                                                stdout=subprocess.PIPE, 
+                                                stdout=subprocess.PIPE,
                                                 stderr=subprocess.PIPE,
                                                 creationflags=subprocess.CREATE_NO_WINDOW,
                                                 universal_newlines=True)
-                        
+
                     else:
                         process = subprocess.Popen(["adb", "pull", f"{self.app_log_path}/{self.selected_log}", self.dest_path],
-                                                stdout=subprocess.PIPE, 
+                                                stdout=subprocess.PIPE,
                                                 stderr=subprocess.PIPE,
                                                 creationflags=subprocess.CREATE_NO_WINDOW,
                                                 universal_newlines=True)
-                
+
                 while process.poll() is None:
                     output = process.stdout.readline()
                     if output:
@@ -589,7 +590,7 @@ class OTAApp(QMainWindow):
                     error = process.stderr.readline()
                     if error:
                         self.update_signal.emit(error.strip())
-                
+
                 self.finished_signal.emit()
             except Exception as e:
                 self.update_signal.emit(f"日志导出失败：{str(e)}")
@@ -599,7 +600,7 @@ class OTAApp(QMainWindow):
         if not self.check_device_connected():
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
-        
+
         try:
             # 获取日志列表
             log_files = self.acquire_log_list()
@@ -617,24 +618,25 @@ class OTAApp(QMainWindow):
                 0,
                 False
             )
-            
+
             if not ok or not selected_log:
                 self.log("用户取消日志导出操作。")
                 return
-                
+
             file_path = QFileDialog.getExistingDirectory(
                 self, "选择保存日志的目录"
             )
 
             if file_path:
                 self.log("开始导出日志...")
-                
+
                 # 创建并启动导出线程
                 self.export_thread = self.ExportLogsThread(file_path, selected_log, self.app_log_path, self.mcu_log_path)
                 self.export_thread.update_signal.connect(self.log)
                 self.export_thread.finished_signal.connect(lambda: self.log("日志导出完成"))
                 self.export_thread.start()
-                
+                QMessageBox.information(self, "提示", "日志导出完成")
+
         except Exception as e:
             QMessageBox.critical(self, "错误", f"获取日志列表失败：{str(e)}")
             self.log(f"获取日志列表失败：{str(e)}")
@@ -644,6 +646,9 @@ class OTAApp(QMainWindow):
         log_message = f"[{timestamp}] {message}"
         self.log_content.append(log_message)
         self.log_area.append(log_message)
+        # 将滚动条移动到最下方
+        scrollbar = self.log_area.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
         self.log_area.ensureCursorVisible()
 
     def show_version(self):
@@ -651,7 +656,49 @@ class OTAApp(QMainWindow):
         if not self.check_device_connected():
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
-        
+
+        # 创建版本信息窗口
+        self.version_window = QDialog(self)
+        self.version_window.setWindowTitle("版本信息")
+        self.version_window.setGeometry(100, 100, 500, 300)
+
+        # 主布局
+        layout = QVBoxLayout()
+
+        # 添加翻页按钮
+        btn_layout = QHBoxLayout()
+        self.prev_btn = QPushButton("< 上一页")
+        self.next_btn = QPushButton("下一页 >")
+        btn_layout.addWidget(self.prev_btn)
+        btn_layout.addWidget(self.next_btn)
+        layout.addLayout(btn_layout)
+
+        # 添加堆栈窗口
+        self.stacked_widget = QStackedWidget()
+
+        # 第一页：配置文件版本信息
+        self.page1 = QTextEdit()
+        self.page1.setReadOnly(True)
+        self.stacked_widget.addWidget(self.page1)
+
+        # 第二页：tbox版本信息
+        self.page2 = QTextEdit()
+        self.page2.setReadOnly(True)
+        self.stacked_widget.addWidget(self.page2)
+
+        layout.addWidget(self.stacked_widget)
+        self.version_window.setLayout(layout)
+
+        # 连接按钮信号
+        self.prev_btn.clicked.connect(self.show_prev_page)
+        self.next_btn.clicked.connect(self.show_next_page)
+
+        # 加载第一页数据
+        self.load_config_version()
+        self.version_window.exec_()
+
+    def load_config_version(self):
+        """加载配置文件版本信息"""
         try:
             result = subprocess.run(
                 ["adb", "shell", "cat", f"{self.configs_path}", "|", "grep", "ware"],
@@ -659,60 +706,139 @@ class OTAApp(QMainWindow):
                 creationflags=subprocess.CREATE_NO_WINDOW,
                 text=True
             )
-            
+
             if result.returncode == 0:
                 version_info = result.stdout
-                version_info_format = ''
+                # 使用与系统一致的字体
+                version_info_format = '<pre style="font-family: inherit;">'
                 for line in version_info.splitlines():
                     if "=" and ";" and " " in line:
                         line = line.replace(";", "")
                         line = line.replace('"', "")
                         key, value = line.split("=", 1)
                         version_info_format += f"{key.strip()}: {value.strip().center(20, ' ')}\n"
-                self.log(f"\n{version_info_format}")
+                        version_info_format += "\n"
+                version_info_format += '</pre>'
+                self.page1.setHtml(version_info_format)
+                version_info_format = version_info_format.replace('<pre style="font-family: inherit;">', '').replace('</pre>', '')
+                self.log(f"配置文件版本信息：\n\n{version_info_format}")
+                self.load_tbox_version()
             else:
                 QMessageBox.warning(self, "警告", "获取版本信息失败")
         except Exception as e:
-            QMessageBox.critical(self, "错误", f"获取版本信息时出错：{str(e)}")
+            QMessageBox.critical(self, "正在获取，请稍等")
 
-    
+    def load_tbox_version(self):
+        """加载tbox版本信息"""
+        try:
+            result = subprocess.run(
+                ["adb", "shell", "cat", "/oemapp/tbox-version"],
+                capture_output=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                text=True
+            )
+
+            if result.returncode == 0:
+                tbox_info = result.stdout
+                tbox_info_format = '<pre style="font-family: inherit;">'
+                tbox_info_format += tbox_info
+                tbox_info_format += "\n"
+                tbox_info_format += '</pre>'
+                self.page2.setHtml(tbox_info_format)
+            else:
+                self.page2.setText("获取tbox版本信息失败")
+        except Exception as e:
+            self.page2.setText(f"获取tbox版本信息时出错：{str(e)}")
+
+    def show_prev_page(self):
+        """显示上一页"""
+        current_index = self.stacked_widget.currentIndex()
+        if current_index > 0:
+            self.stacked_widget.setCurrentIndex(current_index - 1)
+
+    def show_next_page(self):
+        """显示下一页"""
+        current_index = self.stacked_widget.currentIndex()
+        if current_index < self.stacked_widget.count() - 1:
+            self.stacked_widget.setCurrentIndex(current_index + 1)
+
 
     def view_log(self):
         """查看日志"""
         if not self.check_device_connected():
             QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
             return
-        
+
         try:
             # 获取日志文件列表
             log_files = self.acquire_log_list()
-            
+
             if not log_files:
                 QMessageBox.information(self, "提示", "没有找到任何日志文件")
                 return
 
-            # 选择要查看的日志文件
-            selected_log, ok = QInputDialog.getItem(
-                self,
-                "选择日志文件",
-                "请选择要查看的日志文件：",
-                log_files,
-                0,
-                False
-            )
-
-            if not ok or not selected_log:
-                self.log("用户取消日志查看操作。")
+            # 获取用户选择的日志文件
+            selected_log = self.get_selected_log(log_files)
+            if not selected_log:
                 return
 
             # 创建并显示日志查看窗口
-            self.log_viewer = LogViewerWindow(f"/oemdata/logs/{selected_log}")
-            self.log_viewer.show()
+            self.create_log_viewer(selected_log)
 
         except Exception as e:
             QMessageBox.critical(self, "错误", f"获取日志列表失败：{str(e)}")
             self.log(f"获取日志列表失败：{str(e)}")
-    
+
+    def get_selected_log(self, log_files):
+        """获取用户选择的日志文件"""
+        while True:
+            input_log, ok = QInputDialog.getText(
+                self,
+                "输入日志文件名",
+                "请输入日志文件名（支持部分匹配）：",
+                text=""
+            )
+
+            if not ok or not input_log:
+                self.log("用户取消日志查看操作。")
+                return None
+
+            # 进行模糊匹配
+            matched_logs = [log for log in log_files if input_log.lower() in log.lower()]
+
+            if not matched_logs:
+                QMessageBox.warning(self, "警告", f"未找到包含'{input_log}'的日志文件，请重新输入")
+                continue
+
+            # 如果只有一个匹配项，直接打开
+            if len(matched_logs) == 1:
+                return matched_logs[0]
+            else:
+                # 如果有多个匹配项，让用户选择
+                selected_log, ok = QInputDialog.getItem(
+                    self,
+                    "选择日志文件",
+                    "请选择要查看的日志文件：",
+                    matched_logs,
+                    0,
+                    False
+                )
+
+                if not ok or not selected_log:
+                    self.log("用户取消日志查看操作。")
+                    return None
+                return selected_log
+
+    def create_log_viewer(self, selected_log):
+        """创建并显示日志查看窗口"""
+        # 清理已关闭的日志窗口
+        self.log_viewer = [viewer for viewer in self.log_viewer if viewer.isVisible()]
+
+        # 创建新的日志查看窗口
+        log_viewer = LogViewerWindow(f"/oemdata/logs/{selected_log}")
+        log_viewer.show()
+        self.log_viewer.append(log_viewer)
+
     def acquire_log_list(self):
         """获取日志列表"""
         # 获取两个目录的日志文件列表
@@ -731,7 +857,7 @@ class OTAApp(QMainWindow):
 
         log_files = [line.strip() for line in result1.stdout.splitlines() if line.strip()]
         log_files += [line.strip() for line in result2.stdout.splitlines() if line.strip()]
-        
+
         return log_files
 
 
@@ -744,7 +870,7 @@ class LogViewerWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle(f"{os.path.basename(self.log_file)}")
-        self.setGeometry(200, 200, 800, 600)
+        self.setGeometry(200, 200, 1200, 600)
 
         # 主布局
         main_widget = QWidget()
@@ -753,7 +879,7 @@ class LogViewerWindow(QMainWindow):
 
         # 按钮区域
         button_layout = QHBoxLayout()
-        
+
         # 添加暂停按钮
         self.pause_button = QPushButton("暂停滚动")
         self.pause_button.clicked.connect(self.pause_log)
@@ -777,7 +903,7 @@ class LogViewerWindow(QMainWindow):
         # 启动日志查看线程
         self.view_log_thread = ViewLogThread(self.log_file)
         self.view_log_thread.update_signal.connect(self.update_log)
-        self.view_log_thread.finished_signal.connect(lambda: self.log("日志查看结束"))
+        self.view_log_thread.finished_signal.connect(self.handle_log_finished)
         self.view_log_thread.start()
 
     def pause_log(self):
@@ -796,12 +922,20 @@ class LogViewerWindow(QMainWindow):
         """更新日志内容"""
         if not self.is_paused:
             self.log_area.append(message)
+            # 将滑动块移动到最下方
+            scrollbar = self.log_area.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
             self.log_area.ensureCursorVisible()
 
     def log(self, message):
         """直接添加日志内容"""
         self.log_area.append(message)
         self.log_area.ensureCursorVisible()
+
+    def handle_log_finished(self):
+        """处理日志查看结束"""
+        self.log("日志查看结束")
+        QMessageBox.information(self, "提示", "日志查看已结束")
 
 class ViewLogThread(QThread):
         update_signal = pyqtSignal(str)
