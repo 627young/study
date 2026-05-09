@@ -1513,62 +1513,62 @@ class ViewLogThread(QThread):
 
 
 
-    def view_log(self):
-        """查看日志"""
-        if not self.check_device_connected():
-            QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
-            return
-
-        try:
-            # 获取日志文件列表
-            log_files = self.acquire_log_list()
-
-            if not log_files:
-                QMessageBox.information(self, "提示", "没有找到任何日志文件")
+        def view_log(self):
+            """查看日志"""
+            if not self.check_device_connected():
+                QMessageBox.critical(self, "错误", "设备未连接，请先连接设备。")
                 return
 
-            # 选择要查看的日志文件
-            selected_log, ok = QInputDialog.getItem(
-                self,
-                "选择日志文件",
-                "请选择要查看的日志文件：",
-                log_files,
-                0,
-                False
+            try:
+                # 获取日志文件列表
+                log_files = self.acquire_log_list()
+
+                if not log_files:
+                    QMessageBox.information(self, "提示", "没有找到任何日志文件")
+                    return
+
+                # 选择要查看的日志文件
+                selected_log, ok = QInputDialog.getItem(
+                    self,
+                    "选择日志文件",
+                    "请选择要查看的日志文件：",
+                    log_files,
+                    0,
+                    False
+                )
+
+                if not ok or not selected_log:
+                    self.log("用户取消日志查看操作。")
+                    return
+
+                # 创建并显示日志查看窗口
+                self.log_viewer = LogViewerWindow(f"/oemdata/logs/{selected_log}")
+                self.log_viewer.show()
+
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"获取日志列表失败：{str(e)}")
+                self.log(f"获取日志列表失败：{str(e)}")
+
+        def acquire_log_list(self):
+            """获取日志列表"""
+            # 获取两个目录的日志文件列表
+            result1 = subprocess.run(
+                ["adb", "shell", f"ls -lA {self.app_log_path} | awk '{{print $9}}'"],
+                capture_output=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                text=True
+            )
+            result2 = subprocess.run(
+                ["adb", "shell", f"ls -lA {self.mcu_log_path} | awk '{{print $9}}'"],
+                capture_output=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                text=True
             )
 
-            if not ok or not selected_log:
-                self.log("用户取消日志查看操作。")
-                return
+            log_files = [line.strip() for line in result1.stdout.splitlines() if line.strip()]
+            log_files += [line.strip() for line in result2.stdout.splitlines() if line.strip()]
 
-            # 创建并显示日志查看窗口
-            self.log_viewer = LogViewerWindow(f"/oemdata/logs/{selected_log}")
-            self.log_viewer.show()
-
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"获取日志列表失败：{str(e)}")
-            self.log(f"获取日志列表失败：{str(e)}")
-
-    def acquire_log_list(self):
-        """获取日志列表"""
-        # 获取两个目录的日志文件列表
-        result1 = subprocess.run(
-            ["adb", "shell", f"ls -lA {self.app_log_path} | awk '{{print $9}}'"],
-            capture_output=True,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            text=True
-        )
-        result2 = subprocess.run(
-            ["adb", "shell", f"ls -lA {self.mcu_log_path} | awk '{{print $9}}'"],
-            capture_output=True,
-            creationflags=subprocess.CREATE_NO_WINDOW,
-            text=True
-        )
-
-        log_files = [line.strip() for line in result1.stdout.splitlines() if line.strip()]
-        log_files += [line.strip() for line in result2.stdout.splitlines() if line.strip()]
-
-        return log_files
+            return log_files
 
 
 class LogViewerWindow(QMainWindow):
